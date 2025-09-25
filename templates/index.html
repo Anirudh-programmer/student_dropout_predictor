@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dropout Prediction</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Gradient background */
+        body {
+            background: linear-gradient(135deg, #fff3e0, #ffe0b2, #ffd180);
+        }
+
+        /* Drag & drop highlight */
+        .drag-over {
+            border-color: #f97316; /* orange-500 */
+            background-color: #fff7ed; /* orange-50 */
+        }
+
+        /* Spinner animation */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .spinner {
+            border: 4px solid rgba(0,0,0,0.1);
+            border-left-color: #f97316; /* orange-500 */
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white w-full max-w-3xl rounded-2xl shadow-xl p-8 space-y-8">
+        <div class="text-center">
+            <h1 class="text-3xl font-bold text-orange-800">Student Dropout Prediction</h1>
+            <p class="text-orange-700 mt-2">Upload your student data and get risk predictions instantly.</p>
+        </div>
+
+        <div class="border-t border-orange-200"></div>
+
+        <!-- Drag & Drop Upload -->
+        <div id="dropZone" class="border-2 border-dashed border-orange-400 rounded-lg p-10 text-center cursor-pointer hover:border-orange-600 transition-colors duration-300">
+            <input type="file" id="fileInput" class="hidden" accept=".csv, .xlsx">
+            <div class="flex flex-col items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="none" stroke="currentColor" stroke-width="2" class="text-orange-400">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <p class="mt-2 text-orange-700">Drag & drop your file here or <span class="font-semibold text-orange-600">click to browse</span></p>
+                <p class="text-sm text-orange-500 mt-1">Supported: .csv, .xlsx</p>
+            </div>
+        </div>
+        <div id="fileInfo" class="mt-2 text-orange-700"></div>
+
+        <button id="predictBtn" disabled class="w-full mt-4 px-6 py-3 bg-orange-500 text-white font-bold rounded-lg shadow-lg hover:bg-orange-600 focus:outline-none transition-all duration-300 disabled:bg-orange-200 disabled:cursor-not-allowed">
+            Run Prediction
+        </button>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="hidden fixed inset-0 bg-white bg-opacity-80 flex items-center justify-center">
+            <div class="flex flex-col items-center">
+                <div class="spinner"></div>
+                <p class="mt-4 text-lg font-semibold text-orange-700">Analyzing data...</p>
+            </div>
+        </div>
+
+        <!-- Download Result -->
+        <div id="downloadContainer" class="hidden text-center">
+            <p class="text-orange-700 font-semibold">Your predictions are ready!</p>
+            <a id="downloadBtn" href="#" class="mt-2 inline-block px-6 py-3 bg-green-500 text-white font-bold rounded-lg shadow-lg hover:bg-green-600 transition-colors duration-300">
+                Download Predictions
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const predictBtn = document.getElementById('predictBtn');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const downloadContainer = document.getElementById('downloadContainer');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        let uploadedFile = null;
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => handleFile(e.target.files));
+
+        dropZone.addEventListener('dragover', e => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        dropZone.addEventListener('dragleave', e => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+        });
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            handleFile(e.dataTransfer.files);
+        });
+
+        function handleFile(files) {
+            if (files.length === 0) return;
+            uploadedFile = files[0];
+            fileInfo.innerHTML = `<p class="font-semibold">${uploadedFile.name} (${(uploadedFile.size/1024).toFixed(2)} KB)</p>`;
+            predictBtn.disabled = false;
+        }
+
+        predictBtn.addEventListener('click', () => {
+            if (!uploadedFile) return;
+
+            loadingOverlay.classList.remove('hidden');
+            predictBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('file', uploadedFile);
+
+            fetch("/predict", { method: "POST", body: formData })
+                .then(res => res.blob())
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    downloadBtn.href = url;
+                    downloadContainer.classList.remove('hidden');
+                })
+                .catch(err => alert("Prediction failed: " + err))
+                .finally(() => {
+                    loadingOverlay.classList.add('hidden');
+                    predictBtn.disabled = false;
+                });
+        });
+    </script>
+</body>
+</html>
